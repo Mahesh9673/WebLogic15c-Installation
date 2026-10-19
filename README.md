@@ -1,1 +1,0 @@
-# WebLogic15c-Installation

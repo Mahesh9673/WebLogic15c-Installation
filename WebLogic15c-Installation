@@ -1,0 +1,473 @@
+# WebLogic15c-Installation
+
+
+
+                          WebLogic 15.1.1.0.0 Installation
+=====================================================================
+1.	Copy Binaries on server
+
+ 
+
+2.	Verify mountpoint for 15c
+a.	/Middleware15c
+b.	/Weblogic15c
+ 
+
+3.	Extract Binaries
+
+Go to cd /Middleware15/Binaries
+
+mv jdk-21.0.10 /Middleware/JAVA
+
+Then execute below command for JDk installation. 
+unzip jdk21.zip at Middleware15c  (JDK installation)
+mv jdk-21.0.10 to JAVA
+unzip webLogic14.1.2.zip
+
+Set JAVA home in .bash_profile. Copy below line in .bash_profile in /home/webadmin
+
+export PATH
+export JAVA_HOME=/Middleware15c/JAVA
+export PATH=$JAVA_HOME/bin:$PATH
+
+ 
+
+4.	Create a oraInst.loc file
+[appadmin@SAMUATAPP1 ~]$ cat /Middleware15c/Binaries/oraInst.loc
+We need to modify below parameters only. 
+inst_group= webadmin
+inventory_loc=/Middleware15c/Oracle/oraInventory
+
+5.	Create response file 
+[appadmin@SAMUATAPP1 ~]$ cat /Middleware15c/Binaries/wls.rsp
+[ENGINE]
+Response File Version=1.0.0.0.0
+[ENGINE]
+ORACLE_HOME=/Middleware15c/Oracle/Oracle_Home
+INSTALL_TYPE=WebLogic Server
+DECLINE_SECURITY_UPDATES=true
+SECURITY_UPDATES_VIA_MYORACLESUPPORT=false
+DECLINE_AUTO_UPDATES=true
+
+6.	Install Weblogic 15c, for installation run the following command : 
+/Middleware15c/JAVA/bin/java -jar /Middleware15c/Binaries/fmw_15.1.1.0.0_wls.jar -silent -responseFile /Middleware15c/Binaries/wls.rsp -invPtrLoc /Middleware15c/Binaries/oraInst.loc
+
+ 
+7.	Verify installation
+a.	Go to setWLSEnv.sh location
+cd /Middleware15c/Oracle/Oracle_Home/wlserver/server/bin/
+b.	Execute setWLSEnv.sh
+. ./setWLSEnv.sh
+c.	Verify the version
+/Middleware15c/JAVA/bin/java weblogic.version
+ 
+
+8.	Create domain 
+a.	Create a /Middleware15c/Binaries/domain.py file 
+
+[appadmin@SAMUATAPP1 Binaries]$ cat /Middleware15c/Binaries/domain.py
+
+**************************************** Script start ****************
+
+readTemplate('/Middleware15c/Oracle/Oracle_Home/wlserver/common/templates/wls/wls.jar')
+setOption('JavaHome', '/Middleware15c/JAVA')
+setOption('ServerStartMode', 'prod')
+cd('/Servers/AdminServer')
+set('ListenAddress', '10.191.157.175')'ListenAddress', '10.191.157.14')
+set('ListenPort', 9001))
+cd('/Security/base_domain/User/weblogic')
+cmo.setPassword('weblogic123')
+writeDomain('/Weblogic15c/user_projects/domains/unipaydomain')
+closeTemplate()
+exit())
+
+**************************************** Script end ****************
+Below will change as per application need 
+set('ListenAddress', '10.191.157.175')'ListenAddress', '10.191.157.14')
+set('ListenPort', 7004)'ListenPort', 7004)
+b.	Execute a domain creation script
+/Middleware15c/Oracle/Oracle_Home/oracle_common/common/bin/wlst.sh /Middleware15c/Binaries/domain.py
+
+9.	Start the weblogic server
+cd /Weblogic15c/user_projects/domains/unipaydomain/bin
+./startWebLogic.sh
+10.	 
+a.	Create a boot.properties 
+cd /Weblogic15c/user_projects/domains/unipaydomain/servers/AdminServer
+
+mkdir security
+
+
+vi boot.properties 
+
+Add below mentioned lines
+
+username=weblogic
+password=weblogic123
+
+b.	cd /Weblogic15c/user_projects/domains/unipaydomain/bin/
+c.	nohup ./startWebLogic.sh &
+d.	verify the telnet connectivity and logs of admin server 
+
+11.	Create remote_console_deployment.py to access console 
+a.	vi /Middleware15c/Oracle/Oracle_Home/wlserver/server/bin/remote_console_deployment.py
+Add below content
+# Copyright 2024, Oracle and/or its affiliates.
+
+# This tool is used to deploy the hosted version of WebLogic Remote Console
+# to the Administration Server of a WebLogic domain.  To use it, run this
+# script in WLST, providing:
+#   the Administration Server's URL,
+#   the name of the user to perform the deployment operation and
+#   the password as input to the command
+#
+# For example,
+#    $WL_HOME/common/bin/wlst.sh $WL_HOME/server/bin/remote_console_deployment.py t3://localhost:9001 administrator < $HOME/my-file-containing-password
+
+if len(sys.argv) != 3:
+    print "Usage: " + sys.argv[0] + " admin-server-url username (provide password as program's input)"
+    exit()
+password = sys.stdin.readline().replace('\n', '')
+connect(sys.argv[2], password, sys.argv[1])
+serverRuntime()
+cd('/')'/')
+deploy('weblogic-remote-console-app', cmo.getWeblogicHome() + '/server/lib/wls-remote-console.war', remote='true')'weblogic-remote-console-app', cmo.getWeblogicHome() + '/server/lib/wls-remote-console.war', remote='true')
+disconnect())
+exit())
+
+b.	create /Middleware15c/Binaries/password.txt and enter the exiting password of weblogic user
+
+c.	Run below command to access the console
+
+
+/Middleware15c/Oracle/Oracle_Home/oracle_common/common/bin/wlst.sh /Middleware15c/Oracle/Oracle_Home/wlserver/server/bin/remote_console_deployment.py t3://10.191.157.175:9001 weblogic < /Middleware15c/Binaries/password.txt
+
+
+12.	Install client utility on the desktop (Not use in SBI Environment)
+Download the utiltiy from the below site
+https://github.com/oracle/weblogic-remote-console/releases
+
+
+
+13.	Weblogic Configuration console Level
+______________________________________________________________________________
+
+
+
+1.	Create user (webadmin/appdeployment/Monitoring) (Create new Machine by console)
+
+a.	Logon to the console http://10.191.157.175:9001/rconsole
+b.	Go to Security Data Tree => Realms => myrealm => Authentication Providers => DefaultAuthenticator
+c.	Click on Users
+d.	Click on Create and add user details
+
+ 
+
+e.	Assign the roles to the user
+ 
+
+f.	Login with newly created user (webadmin)
+
+2.	Create Machine (nodemanager)
+
+a.	Click on Edit Tree => Environment => Machines => Create
+ 
+
+b.	Nodemanager Configuration 
+
+ 
+
+c.	Change the nodemanager property 
+a.	cd /Weblogic15c/user_projects/domains/unipaydomain/nodemanager
+b.	vi nodemanager.properties
+c.	Change SecureListener=true to SecureListener=false
+d.	Change ListenAddress=localhost to ListenAddress=10.191.157.175
+e.	Change ListenPort=5556 to ListenPort=5557
+
+d.	Create Cluster and JVMs
+
+a.	Click on Environment => Cluster => Create new and Commit Changes
+
+ 
+
+b.	Click on Servers => Create
+ 
+
+ 
+
+ 
+
+ 
+
+ 
+
+c.	Create JVM on Node 2 by cloning from the JVM of 1st node.
+
+ 
+
+3.	Set Generic JVM arguments.
+a.	Click on Environment => Servers 
+b.	Click on JVM name
+c.	Click on Advanced
+d.	Click on Node Manager
+
+ 
+
+4.	Set JVM arguments in 
+a.	cd /Weblogic15c/user_projects/domains/unipaydomain/bin
+b.	vi setDomainEnv.sh
+
+
+
+
+On the 2nd Node, please execute Step 1 to 7. After completion of installation, please perform pack-unpack operation on 1st Node (on which AdminServer is installed)
+
+1.	Logon to 1st node
+2.	cd /Middleware15c/Oracle/Oracle_Home/oracle_common/common/bin
+3.	./pack.sh -domain=/Weblogic15c/user_projects/domains/unipaydomain -template=/tmp/unipay_domain.jar -template_name="unipaydomain" -managed=true
+4.	Copy the JAR file on 2nd Node
+5.	cd /Middleware15c/Oracle/Oracle_Home/oracle_common/common/bin
+6.	./unpack.sh -template=/tmp/unipay_domain.jar -domain=/Weblogic15c/user_projects/domains/unipaydomain
+7.	Go to /Weblogic15c/user_projects/domains/unipaydomain/nodemanager
+8.	vi nodemanager.properties
+9.	Change ListenAddress=10.191.157.175 to ListenAddress=10.191.157.176.
+
+       14.  SSL Configuration on AdminServer
+_____________________________________________________________________________________
+
+
+•	Place the JKS file on server in /Weblogic15c/certificate.
+•	Logon to Console
+•	Go to Environment => AdminServer => Security => Keystores and make the settings as per below:
+Change keystore type from dropdown the keystore:
+Demo identity Demo Trust to Custom identity java standard trust. 
+
+
+ 
+
+•	Click on SSL tab and enter below mentioned settings
+
+ 
+
+•	Save and commit the changes.
+•	Go to Environment => AdminServer => General to Enable SSL port and non-SSL port
+ 
+
+•	Save and commit the changes.
+•	Restart admin server
+•	Access the console using https://<IP Address>:9002/rconsole
+
+
+SSL Configuration on Managed Server
+
+•	Place the JKS file on server in /Weblogic15c/certificate.
+•	Logon to Console
+•	Go to Environment => AdminPortal1 => Security => Keystores and make the settings as per below: 
+
+Change keystore type from dropdown the keystore:
+Demo identity Demo Trust to Custom identity java standard trust.
+ 
+•	Click on SSL tab and enter below mentioned settings
+ 
+
+•	Save and commit the changes.
+Note: - Same process follows for another managed server. 
+
+Need to place file into the keystore path
+Path- /Weblogic15c/Keystore_Trust_store
+Change permission of directory/Files.
+cd /Weblogic15c/Keystore_Trust_store
+chmod –R 750 *
+
+---------------------------------------------------------------------------------------------------------------------
+
+15.      Patching for oracle Weblogic and OHS.     
+__________________________________________________________________________________
+
+                   
+                                                      Patching.
+
+Standard Prerequisite:
+Download the p38799629_141200_Generic.zip from My Oracle Support
+where you want to extract the SPB
+Path= /Middleware15c/Oracle/Oracle_Home/OPatch
+
+1.	 Stage and verify the SPB zip file
+Path =/tmp or Path= /Middleware15c/Oracle/Oracle_Home/OPatch
+
+2.	 Check Java version 
+# echo $JAVA_HOME
+# which java
+3.	 Create a full backup of Oracle Home
+# (tar –cvzf Oracle_Home_16.042026.tar.gz Oracle_Home) 
+4.	 Check OPatch version
+Go to Path= Path= /Middleware15c/Oracle/Oracle_Home/OPatch
+#./opatch -versionopatch -version
+
+5.	 Stop all processes for WebLogic Server (If required)
+ 
+
+Copy the binary from the central server to Weblogic server.
+# scp -P 22 p38799629_141200_Generic.zip webadmin@10.191.157.175:/tmp
+
+
+Go to the below path 
+Copy patch from tmp to path= /Middleware15c/Oracle/Oracle_Home/OPatch/
+Then unzip patch
+# unzip p38799629_141200_Generic.zip
+
+
+
+.
+b. Run the SPBAT utility for the precheck phase:
+Go to below path= Middleware15c/Oracle/Oracle_Home/OPatch/WLS_SPB_14.1.2.0.251226/tools/spbat/generic/SPBAT
+Run below command: 
+./spbat.sh -phase precheck -oracle_home /Middleware15c/Oracle/Oracle_Home
+Post successfully completes the precheck to run the command below.
+Need to very below Line post complete precheck
+SPBAT precheck phase has completed successfully
+Time Taken to run precheck phase:  00 hours 02 min 10 secs
+
+ 
+
+ ./spbat.sh -phase apply -oracle_home /Middleware15c/Oracle/Oracle_Home
+OR
+Go to /Middleware15c/Oracle/Oracle_Home/OPatch (If precheck failed)
+And run the commands below manually. 
+
+./opatch apply /app/Oracle_Home/OPatch/WLS_SPB_12.2.1.4.260106/binary_patches/adr/linux64/35965629
+./opatch apply /app/Oracle_Home/OPatch/WLS_SPB_12.2.1.4.260106/binary_patches/coherence/generic/1221428
+./opatch apply /app/Oracle_Home/OPatch/WLS_SPB_12.2.1.4.260106/binary_patches/wls/generic/38792523
+./opatch apply /app/Oracle_Home/OPatch/WLS_SPB_12.2.1.4.260106/binary_patches/wls/generic/38820920
+./opatch apply /app/Oracle_Home/OPatch/WLS_SPB_12.2.1.4.260106/binary_patches/fmw_platform/generic/36789759
+./opatch apply /app/Oracle_Home/OPatch/WLS_SPB_12.2.1.4.260106/binary_patches/fmw_platform/generic/37056593
+./opatch apply /app/Oracle_Home/OPatch/WLS_SPB_12.2.1.4.260106/binary_patches/oss/linux64/38665131
+./opatch apply /app/Oracle_Home/OPatch/WLS_SPB_12.2.1.4.260106/binary_patches/jdbc/generic/38669934
+./opatch apply /app/Oracle_Home/OPatch/WLS_SPB_12.2.1.4.260106/binary_patches/oss/linux64/38665131
+./opatch apply /app/Oracle_Home/OPatch/WLS_SPB_12.2.1.4.260106/binary_patches/samples/generic/36426672/
+./opatch apply /app/Oracle_Home/OPatch/WLS_SPB_12.2.1.4.260106/binary_patches/tpp/generic/38759265/
+./opatch apply /app/Oracle_Home/OPatch/WLS_SPB_12.2.1.4.260106/binary_patches/rda/generic/38447255
+
+Below Patch will covered under the SPBAT Bundle patch.
+38799680;WLS STACK PATCH BUNDLE 14.1.2.0.251226 (Patch 38799629) STACK PATCH BUNDLE 14.1.2.0.251226 (Patch 38799629)
+38792753;WLS PATCH SET UPDATE 14.1.2.0.251223 PATCH SET UPDATE 14.1.2.0.251223
+38716831;Coherence Cumulative Patch 14.1.2.0.5 Cumulative Patch 14.1.2.0.5
+38670286;JDBC23.26 BUNDLE PATCH 14.1.2.0.25111723.26 BUNDLE PATCH 14.1.2.0.251117
+38636684;FMW Third-party Bundle Patch 14.1.2.0.251110 Bundle Patch 14.1.2.0.251110
+38582037;DATABASE RELEASE UPDATE 23.26.0.0.0 FOR FMW DBCLIENT RELEASE UPDATE 23.26.0.0.0 FOR FMW DBCLIENT
+38447238;RDA release 26.1-2026120 for OFM 14.1.2 SPB release 26.1-2026120 for OFM 14.1.2 SPB
+
+Check below line:
+SPBAT apply phase has completed successfully
+Time Taken to run apply phase:  00 hours 06 min 55 secs
+
+
+ 
+Now move the patch binary from the OPatach direcotry to /tmp
+
+Go to path= /Middleware15c/Oracle/Oracle_Home/OPatch
+
+# mv p38799629_141200_Generic.zip_1 WLS_SPB_14.1.2.0.251226 /tmp
+
+# ./opatch lsinventory  (You can validate the applied patches and bug lists) the applied patches and bug lists)
+# ./opatch lspatches  (you can get the applied patches details)  (you can get the applied patches details)
+[webadmin@bbpsbopuatapp12 OPatch]$ ./opatch lspatches
+38799680; WLS STACK PATCH BUNDLE 14.1.2.0.251226 (Patch 38799629)
+38792753; WLS PATCH SET UPDATE 14.1.2.0.251223
+38716831; Coherence Cumulative Patch 14.1.2.0.5
+38670286; JDBC23.26 BUNDLE PATCH 14.1.2.0.251117
+38636684; FMW Third-party Bundle Patch 14.1.2.0.251110
+38582037; DATABASE RELEASE UPDATE 23.26.0.0.0 FOR FMW DBCLIENT
+38447238; RDA release 26.1-2026120 for OFM 14.1.2 SPB
+ OPatch succeeded.
+
+
+Note: Start the services and check application functionality and take confirmation from the respective team by mail.
+
+========================================================
+
+
+POA- 
+16. Install Weblogic15c Using Golden Image. We have covered SCs, SSL, Console level Configuration, etc.
+
+
+POA Weblogic 15C Migration. 
+
+Copy golden image from the 180/181 servers.
+1.	Copy Golden images of Oracle_Home and Domai_Home from the 180/181 server.
+2.	Copy Certificates from the same server from 12c Weblogic console.
+3.	change permission for the Certificate files.
+4.	Remove the unwanted objects, i.e. Server name and directories. 
+5.	Make configuration changes. 
+6.	start the services and check.
+7.	DataSource Creation.
+Refer below commands. 
+
+Execute below commands. go to where you put the Golden image.
+cd /Middleware15c/ tar -xvf GlodenImage.OH_BKP.tar.gz
+cd /Weblogic15c/ tar -xvf Domain_Home.Golden_image.tar.gz 
+cd user_projects/domains/unipaydomain/
+
+
+
+*******************
+Commands,
+cd /Middleware15c/      ( go to)
+  tar -xvf GlodenImage.OH_BKP.tar.gz  (untar the golden Image which is copied from the 180/181 Server)
+  cd /Weblogic15c/  (go to )
+tar -xvf Domain_Home.Golden_image.tar.gz (untar the golden Image which is copied from the 180/181 Server)
+
+cd /Middleware15c/  (go to ) 
+mv GlodenImage.OH_BKP.tar.gz /tmp/ (move from the Mount Point)  
+ls -lrth
+rm GlodenImage.OH_BKP.tar.gz (remove if required or move)
+ls -lrth
+cd JAVA/lib/security/
+
+rm Domain_Home.Golden_image.tar.gz  (remove if required or move)
+cd Keystore_Trust_store/.jks (Copy from the existing server and place in new Domain keystore path)
+ls -lrth
+rm adminportal.jks_12052026 adminportal.jks adminportal_123.jks cacerts adminportal.jks_old (change permission of jks and certificates)
+
+chmod -R 750 *
+cd ../user_projects/domains/unipaydomain/servers/
+ls -lrth
+cd AdminServer/upload/
+ls -lrth
+mv AdminPortal benefits AdminPortal_9e1e AdminPortal_ba1d /tmp/
+ls -lrth
+cd ../
+ls -lrth
+mv cache_19052026 tmp_19052026 cache logs tmp upload /tmp
+
+cp -rp config.xml config.xml_04062026
+grep -r "10.191.157.175" Weblogic15c
+grep -r "10.191.157.176" /Weblogic15c/
+sudo find /Weblogic15c -type f -exec sed -i 's/10.191.157.175/10.191.157.180/g' {} +
+find /Weblogic15c -type f -exec sed -i 's/10.191.157.175/10.191.157.180/g' {} +
+cat config.xml | grep 10.191.157.
+find /Weblogic15c -type f -exec sed -i 's/10.191.157.175/10.191.157.180/g' {} +
+cat config.xml | grep 10.191.157.
+find /Weblogic15c -type f -exec sed -i 's/10.191.157.176/10.191.157.181/g' {} +
+cat config.xml | grep 10.191.157.
+./startNodeManager.sh
+./startWebLogic.sh
+cd ../config
+vi config.xml
+cd ../bin/
+
+Create Datasource as per the existing server.
+DataSource
+
+1.	BBPSBOPUAT BBPSBOPUAT/BBPSBOPUAT_Mgs_2020 jdbc:oracle:thin:@(DESCRIPTION=(ADDRESS_LIST=(ADDRESS=(PROTOCOL=TCP)(HOST=BBPSADMINUAT-SCAN.SBI.CO.IN)(PORT=1531)))(CONNECT_DATA=(SERVICE_NAME=BOPUAT)))
+2.	BUAT1 BBPSBUAT/BBPSBUAT_Mgs_678 jdbc:oracle:thin:@(DESCRIPTION=(ADDRESS_LIST=(ADDRESS=(PROTOCOL=TCP)(HOST=BBPSBILLERUAT-SCAN.SBI.CO.IN)(PORT=1531)))(CONNECT_DATA=(SERVICE_NAME=BUAT)))
+
+ssl
+Note:- Remove old server Ip, JKS part and jks file name, Data source, JVM name, Nodemanager name, Ports) 
+./startWebLogic.sh
+
+Check all services is up and running, JVMs, Machines.
+
+POA Weblogic15 End.
+*********************************************************
+
